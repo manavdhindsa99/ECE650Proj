@@ -75,11 +75,11 @@ class make_Graph
         this->route = e;
     }
 
-    int getVertices(){
+    int get_vtx(){
         return v;
     }
 
-    vector<pair<int,int>> getEdges(){
+    vector<pair<int,int>> get_route(){
         return route;
     }
 };
@@ -199,8 +199,8 @@ vector<int> result_cnf, result_3cnf, result_approxVC1, result_approxVC2, result_
 // Function to implement CNF-SAT-VC
 vector<int> cnf_sat_vc(make_Graph g1)
 {
-    int v = g1.getVertices();
-    vector< pair<int,int> > route = g1.getEdges();
+    int v = g1.get_vtx();
+    vector< pair<int,int> > route = g1.get_route();
 
     if (route.empty()) {
         // cerr << endl;
@@ -290,11 +290,11 @@ void print_value(string n, vector<int> result) {
         // cout << "ddddddddddddddddddddddddddccccccccccccajfhs" <<endl;
 
     cout << n << ": ";
-    if (result.size() == 0) {
+    if (result.empty()) {
         cout << endl;
         return;
     }
-        
+       
 
     sort(result.begin(), result.end());
     for (int i = 0; i < (int)result.size(); i++) {
