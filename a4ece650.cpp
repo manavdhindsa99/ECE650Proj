@@ -12,7 +12,9 @@
 #include <string>
 #include <minisat/core/Solver.h>
 #include <minisat/core/SolverTypes.h>
+#define MAX 100000
 
+#define INFINITY 200000
 using namespace std;
 
 
@@ -23,7 +25,7 @@ public:
     {
         return std::all_of(ed.begin(), ed.end(), [num_vertices](const std::pair<int, int> &ed1)
                            {
-                               return ed1.first >= 0 && ed1.first < num_vertices && ed1.second >= 0 && ed1.second < num_vertices;
+                               return ed1.first >= 0 && ed1.first <= num_vertices && ed1.second >= 0 && ed1.second <= num_vertices;
                                // && ed1.first != ed1.second;
                            });
     }
@@ -168,7 +170,7 @@ vector<int> result_cnf, result_3cnf, result_approxVC1, result_approxVC2, result_
 
     bool checkSatisfiability(Minisat::Solver& minisat, int totalPositions, int v, vector<pair<int,int>> route){
         int rowAdj =0;
-        for( rowAdj =0; rowAdj<v; rowAdj++){
+        for( rowAdj =0; rowAdj<=v; rowAdj++){
             for(int currPositions=0;currPositions<totalPositions;currPositions++){
                 minisat.newVar();
             }
@@ -183,7 +185,7 @@ vector<int> result_cnf, result_3cnf, result_approxVC1, result_approxVC2, result_
 
     vector<int> getRoute(Minisat::Solver& minisat, int currVtx, int v){
         vector<int> p;
-        for (int rowAdj = 0; rowAdj < v; rowAdj++) {
+        for (int rowAdj = 0; rowAdj <= v; rowAdj++) {
             int currPositions = 0;
             while (currPositions < currVtx) {
                 if (minisat.modelValue(generateUniqueIndexForBoolVariable(rowAdj, currPositions, currVtx)) == Minisat::toLbool(0)) {
@@ -252,39 +254,184 @@ vector<int> cnf_3_sat_vc(make_Graph g1)
 
 // Function to implement APPROX-VC-1
 vector<int> approx_vc_1(make_Graph g1)
-{
-    int a = 25;
-    int b = 30;
-    // return a + b;
-    return vector<int> {};
+{   int V = g1.get_vtx();
+    vector< pair<int,int> > route = g1.get_route();
+
+    vector<int> result;
+
+    while (!route.empty()) {
+        vector<int> cnt(V, 0);
+        for (auto edge : route) {
+            cnt[edge.first]++;
+            cnt[edge.second]++;
+        }
+
+        int max_degree_vertex = std::max_element(cnt.begin(), cnt.end()) - cnt.begin();
+        result.push_back(max_degree_vertex);
+
+        vector<pair<int, int>> new_route;
+        for (auto edge : route) {
+            if (edge.first == max_degree_vertex || edge.second == max_degree_vertex) {
+                continue;
+            }
+            new_route.push_back(edge);
+        }
+        route = new_route;
+    }
+
+    return result;
 }
 
 // Function to implement APPROX-VC-2
+
 vector<int> approx_vc_2(make_Graph g1)
 {
-    int a = 35;
-    int b = 40;
-    // return a + b;
-    return vector<int> {};
+    int V = g1.get_vtx();
+    vector< pair<int,int> > route = g1.get_route();
+
+    vector<int> result;
+    vector< pair<int,int> > edges = route;
+    
+    while (!edges.empty()) {
+        int u = edges[0].first;
+        int v = edges[0].second;
+        
+        result.push_back(u);
+        result.push_back(v);
+        
+        vector< pair<int,int> > new_edges;
+        
+        for (const auto& edge : edges) {
+            if (edge.first != u && edge.second != u && edge.first != v && edge.second != v) {
+                new_edges.push_back(edge);
+            }
+        }
+        
+        edges = new_edges;
+    }
+    
+    return result;
 }
+
+
 
 // Function to implement REFINED-APPROX-VC-1
 vector<int> refined_approx_vc_1(make_Graph g1)
 {
-    int a = 45;
-    int b = 50;
-    // return a + b;
-    return vector<int> {};
+    int V = g1.get_vtx();
+    vector<pair<int, int>> route = g1.get_route();
+
+    vector<int> result;
+
+    while (!route.empty()) {
+        vector<int> cnt(V, 0);
+        for (auto edge : route) {
+            cnt[edge.first]++;
+            cnt[edge.second]++;
+        }
+
+        int max_degree_vertex = std::max_element(cnt.begin(), cnt.end()) - cnt.begin();
+        result.push_back(max_degree_vertex);
+
+        vector<pair<int, int>> new_route;
+        for (auto edge : route) {
+            if (edge.first == max_degree_vertex || edge.second == max_degree_vertex) {
+                continue;
+            }
+            new_route.push_back(edge);
+        }
+        route = new_route;
+    }
+
+    // Go through the set of vertices and remove unnecessary ones
+    for (auto v : result) {
+        // Compute C - {v} to see if v is necessary
+        vector<pair<int, int>> new_route;
+        for (auto edge : route) {
+            if (edge.first == v || edge.second == v) {
+                continue;
+            }
+            new_route.push_back(edge);
+        }
+
+        // If C - {v} is not a vertex cover, keep v in the result
+        bool is_vertex_cover = true;
+        for (auto edge : g1.get_route()) {
+            if (edge.first == v || edge.second == v) {
+                continue;
+            }
+            if (find(new_route.begin(), new_route.end(), edge) == new_route.end()) {
+                is_vertex_cover = false;
+                break;
+            }
+        }
+
+        if (!is_vertex_cover) {
+            route = new_route;
+        }
+    }
+
+    return result;
+}
+
+bool is_vertex_cover(make_Graph g1, vector<int> cover)
+{
+    for (const auto& edge : g1.get_route()) {
+        if (find(cover.begin(), cover.end(), edge.first) == cover.end() &&
+            find(cover.begin(), cover.end(), edge.second) == cover.end()) {
+            // If neither endpoint of the edge is in the cover, it is not a vertex cover
+            return false;
+        }
+    }
+    
+    return true;
 }
 
 // Function to implement REFINED-APPROX-VC-2
 vector<int> refined_approx_vc_2(make_Graph g1)
 {
-    int a = 55;
-    int b = 60;
-    // return a + b;
-    return vector<int> {};
+    int V = g1.get_vtx();
+    vector< pair<int,int> > route = g1.get_route();
+
+    vector<int> result;
+    vector< pair<int,int> > edges = route;
+    
+    while (!edges.empty()) {
+        int u = edges[0].first;
+        int v = edges[0].second;
+        
+        result.push_back(u);
+        result.push_back(v);
+        
+        vector< pair<int,int> > new_edges;
+        
+        for (const auto& edge : edges) {
+            if (edge.first != u && edge.second != u && edge.first != v && edge.second != v) {
+                new_edges.push_back(edge);
+            }
+        }
+        
+        edges = new_edges;
+    }
+
+    // Removing unnecessary vertices
+    vector<int> vertex_cover(result);
+    for (const auto& vertex : result) {
+        vertex_cover.erase(remove(vertex_cover.begin(), vertex_cover.end(), vertex), vertex_cover.end());
+        if (is_vertex_cover(g1, vertex_cover)) {
+            // If removing the vertex leaves a vertex cover, it is not needed
+            continue;
+        }
+        else {
+            // If removing the vertex does not leave a vertex cover, add it back
+            vertex_cover.push_back(vertex);
+        }
+    }
+    
+    return vertex_cover;
 }
+
+
 
 void print_value(string n, vector<int> result) {
         // cout << "ddddddddddddddddddddddddddccccccccccccajfhs" <<endl;
@@ -312,11 +459,17 @@ void print_value(string n, vector<int> result) {
 
 // Handler function for CNF-SAT-VC
 void *cnf_sat_vc_handler(void *arg)
-{
+{   clock_t start, finish;
+	double duration;
+
+	start = clock();
     result_cnf = cnf_sat_vc(g);
-    // cout << "ehwhehwe" <<endl;
+    
     print_value("CNF-SAT-VC",result_cnf);
-    // cout << "CNF-SAT-VC: " << result_cnf << endl;
+    finish = clock();
+
+	duration = (double)(finish - start)/CLOCKS_PER_SEC;
+	cout << "the duration time is: " << duration << endl;
     return NULL;
 }
 
@@ -324,38 +477,68 @@ void *cnf_sat_vc_handler(void *arg)
 void *cnf_3_sat_vc_handler(void *arg)
 {
      result_3cnf = cnf_3_sat_vc(g);
-    // cout << "CNF-3-SAT-VC: " << result_3cnf << endl;
+    
     return NULL;
 }
 
 // Handler function for APPROX-VC-1
 void *approx_vc_1_handler(void *arg)
-{
+{   clock_t start, finish;
+	double duration;
+
+	start = clock();
      result_approxVC1 = approx_vc_1(g);
-    // cout << "APPROX-VC-1: " << result_approxVC1 << endl;
+     print_value("APPROX-VC-1" ,result_approxVC1);
+    finish = clock();
+
+	duration = (double)(finish - start)/CLOCKS_PER_SEC;
+	cout << "the duration time is: " << duration << endl;
     return NULL;
 }
 
 // Handler function for APPROX-VC-2
 void *approx_vc_2_handler(void *arg)
-{
-     result_approxVC2 = approx_vc_2(g);
-    // cout << "APPROX-VC-2: " << result_approxVC2 << endl;
+{   clock_t start, finish;
+	double duration;
+
+	start = clock();
+    result_approxVC2 = approx_vc_2(g);
+    print_value("APPROX-VC-2" ,result_approxVC2);
+    finish = clock();
+
+	duration = (double)(finish - start)/CLOCKS_PER_SEC;
+	cout << "the duration time is: " << duration << endl;
+
     return NULL;
 }
 
 // Handler function for REFINED-APPROX-VC-1
 void *refined_approx_vc_1_handler(void *arg)
-{
-     result_red_approxVC1 = refined_approx_vc_1(g);
-    // cout << "REFINED-APPROX-VC-1: " << result_red_approxVC1 << endl;
+{   clock_t start, finish;
+	double duration;
+
+	start = clock();
+    result_red_approxVC1 = refined_approx_vc_1(g);
+    print_value("REFINED-APPROX-VC-1" ,result_red_approxVC1);
+    finish = clock();
+
+	duration = (double)(finish - start)/CLOCKS_PER_SEC;
+	cout << "the duration time is: " << duration << endl;
     return NULL;
 }
 
 // Handler function for REFINED-APPROX-VC-2
 void *refined_approx_vc_2_handler(void *arg)
-{
+{   clock_t start, finish;
+	double duration;
+
+	start = clock();
     result_red_approxVC2 = refined_approx_vc_2(g);
+    print_value("REFINED-APPROX-VC-2" ,result_red_approxVC2);
+    finish = clock();
+
+	duration = (double)(finish - start)/CLOCKS_PER_SEC;
+	cout << "the duration time is: " << duration << endl;
     // cout << "REFINED-APPROX-VC-2: " << result_red_approxVC2 << endl;
     return NULL;
 }
