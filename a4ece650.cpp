@@ -860,8 +860,10 @@ void *IOHandler_thread(void *args)
                 pthread_join(t6, NULL);
             }
         }
-        if (!getline(cin, input)) break;
-
+        if (!getline(cin, input)) {
+            cin.clear();
+            break;
+        }
         cmnd = input[0];
         rest = input.substr(2);
     }
